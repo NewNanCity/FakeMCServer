@@ -1,0 +1,73 @@
+# FakeMCServer 配置文件
+
+# 服务器配置
+server:
+  host: "0.0.0.0" # 监听地址
+  port: 25565 # 监听端口
+  max_connections: 10000 # 最大连接数
+  read_timeout: "30s" # 读取超时
+  idle_timeout: "10m" # 空闲超时
+  num_loops: 0 # netpoll 循环数量，0 表示自动
+
+# 上游服务器配置
+upstream:
+  enabled: true # 是否启用上游同步
+  address: "mc.hypixel.net" # 服务器地址（支持 IP、域名、SRV 记录等格式）
+  sync_interval: "10s" # 同步间隔
+  timeout: "5s" # 请求超时
+  retry_count: 3 # 重试次数
+  retry_interval: "2s" # 重试间隔
+
+# 限流配置
+rate_limit:
+  ip_limit: 5 # 单 IP 每秒连接限制
+  global_limit: 100 # 全局每秒连接限制
+  window: "1s" # 时间窗口
+  cleanup_interval: "1m" # 清理间隔
+
+# 延迟配置
+delay:
+  base_delay: "100ms" # 基础延迟
+  max_ip_penalty: "5s" # 最大 IP 惩罚延迟
+  max_global_penalty: "2s" # 最大全局惩罚延迟
+  ip_frequency_factor: 1.5 # IP 频率因子
+  global_load_factor: 1.2 # 全局负载因子
+  ip_rate_multiplier: 2.0 # IP 频率倍数
+  global_rate_multiplier: 1.5 # 全局频率倍数
+
+# 默认消息配置
+messages:
+  motd: "Welcome to the Fake Minecraft Server!" # 服务器描述
+  kick_message: "Server is under maintenance. Try again later." # 踢出消息
+  version_name: "1.20.1" # 版本名称
+  protocol_version: 763 # 协议版本
+  max_players: 100 # 最大玩家数
+  online_players: 0 # 在线玩家数（会被上游覆盖）
+
+# 日志配置
+logging:
+  level: "info" # 日志级别: debug, info, warn, error
+  format: "console" # 日志格式: json, console
+  output: "stdout" # 输出: stdout, stderr, file
+  file_path: "logs/fake-mc.log" # 文件路径（当 output 为 file 时）
+  max_size: 100 # 最大文件大小 (MB)
+  max_backups: 3 # 最大备份文件数
+  max_age: 28 # 最大保存天数
+  compress: true # 是否压缩
+  record_all_attempts: true # 记录所有连接尝试
+
+# 监控配置
+monitoring:
+  enabled: true # 是否启用监控
+  metrics_port: 8080 # 指标端口
+  health_check_path: "/health" # 健康检查路径
+  metrics_path: "/metrics" # 指标路径
+
+# 安全配置
+security:
+  enable_ip_whitelist: false # 是否启用 IP 白名单
+  ip_whitelist: [] # IP 白名单
+  enable_ip_blacklist: true # 是否启用 IP 黑名单
+  ip_blacklist: [] # IP 黑名单
+  max_packet_size: 1048576 # 最大数据包大小 (1MB)
+  connection_timeout: "30s" # 连接超时

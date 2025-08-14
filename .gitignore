@@ -1,0 +1,89 @@
+# 编译输出
+fake-mc-server
+fake-mc-server.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试二进制文件
+*.test
+
+# 输出的二进制文件（当使用 go install 时）
+*.out
+
+# Go 工作空间文件
+go.work
+
+# 依赖目录
+vendor/
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 配置文件（生产环境）
+config/**/*.yml
+!config/example.config.yml
+
+# 临时文件
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.local
+.env.production
+
+# 备份文件
+*.bak
+*.backup
+
+# 性能分析文件
+*.prof
+*.pprof
+
+# 覆盖率文件
+coverage.out
+coverage.html
+
+# 文档生成文件
+docs/_build/
+
+# Docker 相关
+.dockerignore
+
+# 部署相关
+deploy/
+*.tar.gz
+*.zip
+
+# 证书文件
+*.pem
+*.key
+*.crt
+*.p12
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3

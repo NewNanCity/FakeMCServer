@@ -1,0 +1,28 @@
+name: 🔨 Build Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.5"
+
+      - name: 🧪 Test
+        run: |
+          go mod download
+          go test -v ./...
+          go build -o fake-mc-server cmd/server/main.go
+          ./fake-mc-server -version
