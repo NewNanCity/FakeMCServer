@@ -88,11 +88,8 @@ func (us *UpstreamSyncer) Start() error {
 	// 立即执行一次同步
 	us.syncOnce()
 
-	// 启动定时同步
-	us.syncLoop()
-
-	us.logger.Info().Msg("停止上游状态同步")
-	us.running = false
+	// 在 goroutine 中启动定时同步（非阻塞）
+	go us.syncLoop()
 
 	return nil
 }

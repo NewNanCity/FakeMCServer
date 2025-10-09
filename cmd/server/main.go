@@ -20,7 +20,7 @@ import (
 
 // 构建时注入的版本信息
 var (
-	version   = "dev"     // 通过 -ldflags 注入
+	version   = "gomc-v1" // GoMC版本
 	buildTime = "unknown" // 通过 -ldflags 注入
 	gitCommit = "unknown" // 通过 -ldflags 注入
 )
@@ -31,7 +31,7 @@ var (
 )
 
 const (
-	AppName = "FakeMCServer"
+	AppName = "FakeMCServer (GoMC Edition)"
 )
 
 // printVersion 显示详细的版本信息
@@ -52,175 +52,133 @@ func printVersion() {
 func main() {
 	flag.Parse()
 
+	// 显示版本信息
 	if *showVersion {
 		printVersion()
-		os.Exit(0)
+		return
 	}
-
-	// 设置主上下文和信号处理
-	ctx, cancel := context.WithCancel(context.Background())
 
 	// 加载配置
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ 加载配置失败: %v\n", err)
+		fmt.Printf("❌ 加载配置失败: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 设置日志
-	loggerManager, err := logger.NewLoggerManager(ctx, cfg)
+	// 初始化日志
+	mainLogger, err := logger.Setup(cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
+		fmt.Printf("❌ 初始化日志失败: %v\n", err)
 		os.Exit(1)
 	}
+	// 使用 fmt 直接输出启动信息（不受日志级别限制）
+	fmt.Printf("🚀 启动 FakeMCServer (GoMC Edition)\n")
+	fmt.Printf("📦 版本: %s\n", version)
+	fmt.Printf("📝 配置: %s\n", *configPath)
+	fmt.Printf("📊 日志级别: %s\n", cfg.Logging.Level)
+	fmt.Println()
 
-	mainLogger := loggerManager.GetMainLogger()
-	attackLogger := loggerManager.GetAttackLogger()
-	performanceLogger := loggerManager.GetPerformanceLogger()
+	// 创建上下文
+	fmt.Println("⏳ 创建上下文...")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	mainLogger.Info().
-		Str("app", AppName).
-		Str("version", version).
-		Str("config_path", *configPath).
-		Msg("启动服务器")
+	// 初始化蜜罐日志
+	fmt.Println("⏳ 初始化蜜罐日志...")
+	honeypotLogger, err := logger.NewHoneypotLogger(&cfg.HoneypotLogging)
+	if err != nil {
+		fmt.Printf("❌ 初始化蜜罐日志失败: %v\n", err)
+		os.Exit(1)
+	}
+	defer honeypotLogger.Close()
 
-	// 创建限流器
+	// 初始化限流器
+	fmt.Println("⏳ 初始化限流器...")
 	rateLimiter := limiter.NewRateLimiter(cfg, mainLogger)
-	rateLimiter.StartCleanupRoutine()
 
-	// 创建上游同步器
-	upstreamSyncer := sync.NewUpstreamSyncer(cfg, mainLogger, ctx)
-	go func() {
+	// 初始化上游同步器
+	fmt.Println("⏳ 初始化上游同步器...")
+	var upstreamSyncer *sync.UpstreamSyncer
+	if cfg.Upstream.Enabled {
+		upstreamSyncer = sync.NewUpstreamSyncer(cfg, mainLogger, ctx)
+		fmt.Println("⏳ 启动上游同步器...")
 		if err := upstreamSyncer.Start(); err != nil {
-			mainLogger.Error().Err(err).Msg("启动上游同步器失败")
+			fmt.Printf("❌ 启动上游同步器失败: %v\n", err)
+			os.Exit(1)
 		}
-	}()
+		fmt.Printf("✅ 上游同步器已启动: %s\n", cfg.Upstream.Address)
+	}
 
-	// 创建快速协议处理器
-	protocolHandler := protocol.NewFastHandler(cfg, mainLogger, upstreamSyncer, rateLimiter, loggerManager.GetHoneypotLogger())
+	// 创建GoMC处理器
+	fmt.Println("⏳ 创建GoMC处理器...")
+	handler := protocol.NewGoMCHandler(
+		cfg,
+		mainLogger,
+		upstreamSyncer,
+		honeypotLogger,
+		rateLimiter,
+	)
 
 	// 创建网络服务器
-	server, err := network.NewServer(cfg, mainLogger, protocolHandler, ctx)
+	fmt.Println("⏳ 创建网络服务器...")
+	server, err := network.NewServer(cfg, mainLogger, handler, ctx)
 	if err != nil {
-		mainLogger.Error().Err(err).Msg("创建网络服务器失败")
+		fmt.Printf("❌ 创建网络服务器失败: %v\n", err)
 		os.Exit(1)
-	}
-	if server == nil {
-		mainLogger.Fatal().Msg("网络服务器创建返回 nil")
 	}
 
 	// 启动服务器
 	go func() {
-		println("启动服务器于 " + cfg.GetAddress())
+		fmt.Printf("🌐 网络服务器启动中...\n")
+		fmt.Printf("   监听地址: %s\n", cfg.GetAddress())
+
 		if err := server.Start(); err != nil {
-			// 检查是否是因为 context 取消导致的正常关闭
-			select {
-			case <-ctx.Done():
-				// 这是正常关闭，不记录错误
-				mainLogger.Debug().Msg("服务器因上下文取消而停止")
-			default:
-				// 这是异常错误
-				mainLogger.Error().Err(err).Msg("服务器启动失败")
-				cancel()
-			}
+			mainLogger.Error().Err(err).Msg("网络服务器错误")
+			cancel()
 		}
 	}()
 
-	// 等待一小段时间确保服务器启动
-	time.Sleep(100 * time.Millisecond)
+	// 等待启动完成
+	time.Sleep(500 * time.Millisecond)
 
-	// 设置信号处理
+	// 显示启动信息
+	fmt.Println()
+	fmt.Println("✨ FakeMCServer (GoMC Edition) 启动完成")
+	fmt.Println("📊 服务器状态:")
+	fmt.Printf("   - 监听地址: %s\n", cfg.GetAddress())
+	fmt.Printf("   - 最大连接数: %d\n", cfg.Server.MaxConnections)
+	fmt.Printf("   - IP限流: %d/s\n", cfg.RateLimit.IPLimit)
+	fmt.Printf("   - 全局限流: %d/s\n", cfg.RateLimit.GlobalLimit)
+	if cfg.Upstream.Enabled {
+		fmt.Printf("   - 上游服务器: %s\n", cfg.Upstream.Address)
+	}
+	fmt.Println("🎯 使用 Ctrl+C 停止服务器")
+	fmt.Println()
+
+	// 等待信号
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 启动基于 context 的监控服务
-	go startPerformanceMonitoring(ctx, performanceLogger, server, rateLimiter)
-	go startAttackMonitoring(ctx, attackLogger, rateLimiter)
-
-	mainLogger.Info().
-		Str("address", cfg.GetAddress()).
-		Msg("服务器启动成功")
-
-	// 等待停止信号或 context 取消
 	select {
 	case sig := <-sigChan:
-		mainLogger.Info().
-			Str("signal", sig.String()).
-			Msg("收到停止信号")
+		fmt.Printf("\n📡 收到停止信号: %s\n", sig.String())
 	case <-ctx.Done():
-		mainLogger.Info().Msg("上下文取消")
+		fmt.Println("\n📡 上下文已取消")
 	}
 
-	// 取消 context，通知所有组件停止（包括 loggerManager）
+	// 优雅关闭
+	fmt.Println("🛑 正在停止服务器...")
+
+	// 取消上下文
 	cancel()
 
-	// 给所有基于 context 的组件时间来处理取消信号
+	// 等待清理
 	time.Sleep(1 * time.Second)
 
-	mainLogger.Info().Msg("服务器已停止")
-}
+	// 显示统计信息
+	stats := server.GetStats()
+	fmt.Println("📈 服务器统计:")
+	fmt.Printf("   - 当前连接数: %v\n", stats["connection_count"])
 
-// startPerformanceMonitoring 启动性能监控
-func startPerformanceMonitoring(ctx context.Context, perfLogger *logger.PerformanceLogger, server *network.Server, rateLimiter *limiter.RateLimiter) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// 获取内存统计
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-
-			// 记录内存使用情况
-			perfLogger.LogMemoryUsage(
-				m.Alloc/1024/1024, // MB
-				m.Sys/1024/1024,   // MB
-				uint64(m.NumGC),   // GC 次数
-			)
-
-			// 获取服务器统计
-			serverStats := server.GetStats()
-			if activeConns, ok := serverStats["connection_count"].(int64); ok {
-				perfLogger.LogConnectionMetrics(
-					activeConns,
-					activeConns, // 这里简化处理，实际应该记录总连接数
-					0,           // 平均响应时间，需要从其他地方获取
-				)
-			}
-
-			// 获取限流器统计
-			limiterStats := rateLimiter.GetStats()
-			if globalReqs, ok := limiterStats["global_requests"].(int64); ok {
-				if totalReqs, ok := limiterStats["total_requests"].(int64); ok {
-					if activeIPs, ok := limiterStats["active_ip_count"].(int); ok {
-						if avgReqsPerSec, ok := limiterStats["avg_requests_per_second"].(float64); ok {
-							perfLogger.LogRateLimitMetrics(globalReqs, totalReqs, activeIPs, avgReqsPerSec)
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-// startAttackMonitoring 启动攻击监控
-func startAttackMonitoring(ctx context.Context, attackLogger *logger.AttackLogger, rateLimiter *limiter.RateLimiter) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// 检查熔断器状态
-			if rateLimiter.IsCircuitBreakerTriggered() {
-				metrics := rateLimiter.GetStats()
-				attackLogger.LogCircuitBreakerTriggered("全局限流触发", metrics)
-			}
-		}
-	}
+	fmt.Println("👋 FakeMCServer (GoMC Edition) 已停止")
 }

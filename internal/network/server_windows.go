@@ -4,6 +4,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -144,26 +145,39 @@ func (s *Server) lifecycleManager() {
 
 // acceptConnections 接受连接的循环
 func (s *Server) acceptConnections() error {
-	for {
+	for s.running.Load() {
 		select {
 		case <-s.ctx.Done():
-			return s.ctx.Err()
+			return nil
 		default:
 		}
 
-		// 接受新连接
 		conn, err := s.listener.Accept()
 		if err != nil {
-			if s.running.Load() {
-				s.logger.Error().Err(err).Msg("接受连接失败")
+			if !s.running.Load() || errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled) {
+				return nil
+			}
+
+			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+				s.logger.Warn().Err(err).Msg("接受连接出现临时错误，重试")
+				time.Sleep(50 * time.Millisecond)
 				continue
 			}
-			return err
+
+			select {
+			case <-s.ctx.Done():
+				return nil
+			default:
+			}
+
+			s.logger.Error().Err(err).Msg("接受连接失败")
+			continue
 		}
 
-		// 处理连接
 		go s.handleConnection(conn)
 	}
+
+	return nil
 }
 
 // handleConnection 处理单个连接
