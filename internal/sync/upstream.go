@@ -201,8 +201,25 @@ func (us *UpstreamSyncer) updateState(resp []byte) {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	// 缓存原始响应
-	us.cachedResponse = resp
+	// 根据配置决定是否覆盖版本信息
+	if us.config.Upstream.OverrideVersion {
+		// 覆盖上游响应中的版本信息为配置的版本
+		modifiedResp := us.overrideVersionInfo(resp)
+		if modifiedResp != nil {
+			// 缓存修改后的响应
+			us.cachedResponse = modifiedResp
+			us.logger.Debug().Msg("已覆盖上游版本信息")
+		} else {
+			// 如果修改失败，使用原始响应
+			us.cachedResponse = resp
+			us.logger.Warn().Msg("版本信息覆盖失败，使用原始响应")
+		}
+	} else {
+		// 直接使用上游响应（保留 Velocity 的版本信息）
+		us.cachedResponse = resp
+		us.logger.Debug().Msg("使用上游原始版本信息")
+	}
+
 	// 重置上游不可用标志
 	us.upstreamUnavailable = false
 
@@ -236,6 +253,41 @@ func (us *UpstreamSyncer) updateStateOffline() {
 
 	// 标记上游不可用
 	us.upstreamUnavailable = true
+}
+
+// overrideVersionInfo 覆盖上游响应中的版本信息为配置的版本
+func (us *UpstreamSyncer) overrideVersionInfo(upstreamResp []byte) []byte {
+	var serverInfo map[string]interface{}
+	if err := sonic.Unmarshal(upstreamResp, &serverInfo); err != nil {
+		us.logger.Error().Err(err).Msg("解析上游响应失败，使用原始响应")
+		return nil
+	}
+
+	// 替换版本信息为配置的版本
+	if version, ok := serverInfo["version"].(map[string]interface{}); ok {
+		version["name"] = us.config.Messages.VersionName
+		version["protocol"] = us.config.Messages.ProtocolVersion
+		us.logger.Debug().
+			Str("version_name", us.config.Messages.VersionName).
+			Int("protocol_version", us.config.Messages.ProtocolVersion).
+			Msg("已覆盖上游响应的版本信息")
+	} else {
+		// 如果上游响应中没有 version 字段，添加它
+		serverInfo["version"] = map[string]interface{}{
+			"name":     us.config.Messages.VersionName,
+			"protocol": us.config.Messages.ProtocolVersion,
+		}
+		us.logger.Warn().Msg("上游响应缺少 version 字段，已添加配置的版本信息")
+	}
+
+	// 重新序列化
+	modifiedResp, err := sonic.Marshal(serverInfo)
+	if err != nil {
+		us.logger.Error().Err(err).Msg("序列化修改后的响应失败")
+		return nil
+	}
+
+	return modifiedResp
 }
 
 // createOfflineResponse 从缓存的响应创建离线响应（在线人数为 0）

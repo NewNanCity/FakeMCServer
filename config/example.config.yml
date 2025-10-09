@@ -17,6 +17,7 @@ upstream:
   timeout: "5s" # 请求超时
   retry_count: 3 # 重试次数
   retry_interval: "2s" # 重试间隔
+  override_version: true # 是否覆盖上游的版本信息
 
 # 限流配置
 rate_limit:

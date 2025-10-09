@@ -33,12 +33,13 @@ type ServerConfig struct {
 
 // UpstreamConfig 上游服务器配置
 type UpstreamConfig struct {
-	Enabled       bool          `yaml:"enabled"`
-	Address       string        `yaml:"address"` // 服务器地址（支持 IP、域名、SRV 记录等）
-	SyncInterval  time.Duration `yaml:"sync_interval"`
-	Timeout       time.Duration `yaml:"timeout"`
-	RetryCount    int           `yaml:"retry_count"`
-	RetryInterval time.Duration `yaml:"retry_interval"`
+	Enabled                  bool          `yaml:"enabled"`
+	Address                  string        `yaml:"address"` // 服务器地址（支持 IP、域名、SRV 记录等）
+	SyncInterval             time.Duration `yaml:"sync_interval"`
+	Timeout                  time.Duration `yaml:"timeout"`
+	RetryCount               int           `yaml:"retry_count"`
+	RetryInterval            time.Duration `yaml:"retry_interval"`
+	OverrideVersion          bool          `yaml:"override_version"`            // 是否覆盖上游的版本信息
 }
 
 // RateLimitConfig 限流配置
