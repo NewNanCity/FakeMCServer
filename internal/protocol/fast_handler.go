@@ -299,12 +299,6 @@ func (h *FastHandler) rejectSilently(conn *network.Connection, reason string, de
 func (h *FastHandler) handleStatusRequestFast(conn *network.Connection) error {
 	conn.Logger.Debug().Msg("收到状态请求包")
 
-	// 检查连接是否仍然有效
-	if !h.isConnectionValid(conn) {
-		conn.Logger.Debug().Msg("连接已关闭，跳过状态响应")
-		return fmt.Errorf("connection closed")
-	}
-
 	// 构建并发送状态响应
 	statusJSON := h.buildServerStatus()
 	response := packet.Marshal(0x00, packet.String(statusJSON))
@@ -312,12 +306,6 @@ func (h *FastHandler) handleStatusRequestFast(conn *network.Connection) error {
 	var buf bytes.Buffer
 	if err := response.Pack(&buf, -1); err != nil {
 		return fmt.Errorf("pack status response failed: %w", err)
-	}
-
-	// 再次检查连接状态，然后发送响应
-	if !h.isConnectionValid(conn) {
-		conn.Logger.Debug().Msg("连接在构建响应时已关闭")
-		return fmt.Errorf("connection closed during response building")
 	}
 
 	if _, err := conn.Write(buf.Bytes()); err != nil {
@@ -328,22 +316,8 @@ func (h *FastHandler) handleStatusRequestFast(conn *network.Connection) error {
 	return nil // 继续处理后续数据包（可能的 ping）
 }
 
-// isConnectionValid 检查连接是否仍然有效
-func (h *FastHandler) isConnectionValid(conn *network.Connection) bool {
-	// 简化的连接检查：尝试设置读取超时
-	// 如果设置失败，说明连接已经关闭
-	err := conn.SetReadDeadline(time.Now().Add(ReadTimeout * time.Second))
-	return err == nil
-}
-
 // handlePingRequestFast 快速处理 ping 请求（采用原始实现的方式）
 func (h *FastHandler) handlePingRequestFast(conn *network.Connection, data []byte) error {
-	// 检查连接是否仍然有效
-	if !h.isConnectionValid(conn) {
-		conn.Logger.Debug().Msg("连接已关闭，跳过Ping响应")
-		return fmt.Errorf("connection closed")
-	}
-
 	// 提取时间戳（跳过包长度和包ID）- 采用原始实现的逻辑
 	var timestamp []byte
 	if len(data) >= 10 { // 包长度(1) + 包ID(1) + 时间戳(8)
@@ -365,12 +339,6 @@ func (h *FastHandler) handlePingRequestFast(conn *network.Connection, data []byt
 	response = append(response, packetLenVarInt...) // 包长度
 	response = append(response, 0x01)               // 包ID (Pong)
 	response = append(response, timestamp...)       // 时间戳
-
-	// 再次检查连接状态，然后发送响应
-	if !h.isConnectionValid(conn) {
-		conn.Logger.Debug().Msg("连接在构建Pong响应时已关闭")
-		return fmt.Errorf("connection closed during pong building")
-	}
 
 	// 发送响应
 	if _, err := conn.Write(response); err != nil {
