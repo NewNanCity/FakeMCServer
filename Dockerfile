@@ -9,7 +9,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 # 下载依赖
 COPY go.mod go.sum ./
-RUN go mod download
+RUN RUN go env -w GO111MODULE=on && go env -w GOPROXY=https://goproxy.cn,direct && go mod download
 
 # 编译应用
 COPY . .
@@ -27,6 +27,12 @@ LABEL org.opencontainers.image.source=https://github.com/NewNanCity/FakeMCServer
 LABEL org.opencontainers.image.description="A fake Minecraft server for security and testing"
 LABEL org.opencontainers.image.licenses=MIT
 LABEL maintainer="NewNanCity Team"
+
+# 复制CA证书用于HTTPS/TLS验证
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# 复制时区数据
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=builder /app/fake-mc-server .
 EXPOSE 25565
