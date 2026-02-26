@@ -41,16 +41,16 @@ func NewUpstreamSyncer(cfg *config.Config, logger zerolog.Logger, ctx context.Co
 
 // createDefaultResponse 创建默认的 JSON 响应
 func (us *UpstreamSyncer) createDefaultResponse() []byte {
-	defaultResponse := map[string]interface{}{
-		"version": map[string]interface{}{
+	defaultResponse := map[string]any{
+		"version": map[string]any{
 			"name":     us.config.Messages.VersionName,
 			"protocol": us.config.Messages.ProtocolVersion,
 		},
-		"players": map[string]interface{}{
+		"players": map[string]any{
 			"max":    us.config.Messages.MaxPlayers,
 			"online": us.config.Messages.OnlinePlayers,
 		},
-		"description": map[string]interface{}{
+		"description": map[string]any{
 			"text": us.config.Messages.MOTD,
 		},
 		"favicon": "", // 默认无图标
@@ -254,14 +254,14 @@ func (us *UpstreamSyncer) updateStateOffline() {
 
 // overrideVersionInfo 覆盖上游响应中的版本信息为配置的版本
 func (us *UpstreamSyncer) overrideVersionInfo(upstreamResp []byte) []byte {
-	var serverInfo map[string]interface{}
+	var serverInfo map[string]any
 	if err := sonic.Unmarshal(upstreamResp, &serverInfo); err != nil {
 		us.logger.Error().Err(err).Msg("解析上游响应失败，使用原始响应")
 		return nil
 	}
 
 	// 替换版本信息为配置的版本
-	if version, ok := serverInfo["version"].(map[string]interface{}); ok {
+	if version, ok := serverInfo["version"].(map[string]any); ok {
 		version["name"] = us.config.Messages.VersionName
 		version["protocol"] = us.config.Messages.ProtocolVersion
 		us.logger.Debug().
@@ -270,7 +270,7 @@ func (us *UpstreamSyncer) overrideVersionInfo(upstreamResp []byte) []byte {
 			Msg("已覆盖上游响应的版本信息")
 	} else {
 		// 如果上游响应中没有 version 字段，添加它
-		serverInfo["version"] = map[string]interface{}{
+		serverInfo["version"] = map[string]any{
 			"name":     us.config.Messages.VersionName,
 			"protocol": us.config.Messages.ProtocolVersion,
 		}
@@ -289,14 +289,14 @@ func (us *UpstreamSyncer) overrideVersionInfo(upstreamResp []byte) []byte {
 
 // createOfflineResponse 从缓存的响应创建离线响应（在线人数为 0）
 func (us *UpstreamSyncer) createOfflineResponse(cachedResp []byte) []byte {
-	var serverInfo map[string]interface{}
+	var serverInfo map[string]any
 	if err := sonic.Unmarshal(cachedResp, &serverInfo); err != nil {
 		us.logger.Error().Err(err).Msg("解析缓存响应失败")
 		return nil
 	}
 
 	// 修改在线人数为 0
-	if players, ok := serverInfo["players"].(map[string]interface{}); ok {
+	if players, ok := serverInfo["players"].(map[string]any); ok {
 		players["online"] = 0
 	}
 
@@ -316,11 +316,11 @@ func (us *UpstreamSyncer) IsRunning() bool {
 }
 
 // GetStats 获取统计信息
-func (us *UpstreamSyncer) GetStats() map[string]interface{} {
+func (us *UpstreamSyncer) GetStats() map[string]any {
 	us.mu.RLock()
 	defer us.mu.RUnlock()
 
-	return map[string]interface{}{
+	return map[string]any{
 		"running":              us.running,
 		"enabled":              us.config.Upstream.Enabled,
 		"upstream_address":     us.config.Upstream.Address,

@@ -9,18 +9,18 @@ import (
 // PerformanceMonitor 性能监控器
 type PerformanceMonitor struct {
 	// 计数器
-	totalConnections    atomic.Int64
-	activeConnections   atomic.Int64
-	totalRequests       atomic.Int64
-	totalBytes          atomic.Int64
-	
+	totalConnections  atomic.Int64
+	activeConnections atomic.Int64
+	totalRequests     atomic.Int64
+	totalBytes        atomic.Int64
+
 	// 时间统计
-	startTime           time.Time
-	lastResetTime       atomic.Int64
-	
+	startTime     time.Time
+	lastResetTime atomic.Int64
+
 	// 延迟统计
-	totalResponseTime   atomic.Int64 // 纳秒
-	responseCount       atomic.Int64
+	totalResponseTime atomic.Int64 // 纳秒
+	responseCount     atomic.Int64
 }
 
 // NewPerformanceMonitor 创建性能监控器
@@ -52,14 +52,14 @@ func (pm *PerformanceMonitor) RecordRequest(bytes int, responseTime time.Duratio
 }
 
 // GetStats 获取性能统计
-func (pm *PerformanceMonitor) GetStats() map[string]interface{} {
+func (pm *PerformanceMonitor) GetStats() map[string]any {
 	now := time.Now()
 	uptime := now.Sub(pm.startTime)
-	
+
 	// 内存统计
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	// 计算平均响应时间
 	totalRespTime := pm.totalResponseTime.Load()
 	respCount := pm.responseCount.Load()
@@ -67,12 +67,12 @@ func (pm *PerformanceMonitor) GetStats() map[string]interface{} {
 	if respCount > 0 {
 		avgResponseTime = float64(totalRespTime) / float64(respCount) / float64(time.Millisecond)
 	}
-	
+
 	// 计算请求速率
 	totalReqs := pm.totalRequests.Load()
 	requestsPerSecond := float64(totalReqs) / uptime.Seconds()
-	
-	return map[string]interface{}{
+
+	return map[string]any{
 		// 连接统计
 		"total_connections":    pm.totalConnections.Load(),
 		"active_connections":   pm.activeConnections.Load(),
@@ -80,15 +80,15 @@ func (pm *PerformanceMonitor) GetStats() map[string]interface{} {
 		"requests_per_second":  requestsPerSecond,
 		"total_bytes":          pm.totalBytes.Load(),
 		"avg_response_time_ms": avgResponseTime,
-		
+
 		// 系统统计
-		"uptime_seconds":       uptime.Seconds(),
-		"goroutines":           runtime.NumGoroutine(),
-		"memory_alloc_mb":      float64(m.Alloc) / 1024 / 1024,
-		"memory_sys_mb":        float64(m.Sys) / 1024 / 1024,
-		"gc_count":             m.NumGC,
-		"gc_pause_ns":          m.PauseTotalNs,
-		
+		"uptime_seconds":  uptime.Seconds(),
+		"goroutines":      runtime.NumGoroutine(),
+		"memory_alloc_mb": float64(m.Alloc) / 1024 / 1024,
+		"memory_sys_mb":   float64(m.Sys) / 1024 / 1024,
+		"gc_count":        m.NumGC,
+		"gc_pause_ns":     m.PauseTotalNs,
+
 		// CPU统计
 		"cpu_count": runtime.NumCPU(),
 	}
@@ -101,19 +101,19 @@ func (pm *PerformanceMonitor) Reset() {
 }
 
 // GetMemoryUsage 获取内存使用情况
-func (pm *PerformanceMonitor) GetMemoryUsage() map[string]interface{} {
+func (pm *PerformanceMonitor) GetMemoryUsage() map[string]any {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
-	return map[string]interface{}{
-		"alloc_mb":      float64(m.Alloc) / 1024 / 1024,
+
+	return map[string]any{
+		"alloc_mb":       float64(m.Alloc) / 1024 / 1024,
 		"total_alloc_mb": float64(m.TotalAlloc) / 1024 / 1024,
-		"sys_mb":        float64(m.Sys) / 1024 / 1024,
-		"heap_alloc_mb": float64(m.HeapAlloc) / 1024 / 1024,
-		"heap_sys_mb":   float64(m.HeapSys) / 1024 / 1024,
-		"heap_objects":  m.HeapObjects,
-		"gc_count":      m.NumGC,
-		"gc_pause_ms":   float64(m.PauseTotalNs) / 1e6,
+		"sys_mb":         float64(m.Sys) / 1024 / 1024,
+		"heap_alloc_mb":  float64(m.HeapAlloc) / 1024 / 1024,
+		"heap_sys_mb":    float64(m.HeapSys) / 1024 / 1024,
+		"heap_objects":   m.HeapObjects,
+		"gc_count":       m.NumGC,
+		"gc_pause_ms":    float64(m.PauseTotalNs) / 1e6,
 	}
 }
 

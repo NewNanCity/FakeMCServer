@@ -206,7 +206,7 @@ func (rl *RateLimiter) CleanupExpiredLimiters() {
 	now := time.Now()
 	expiredIPs := make([]string, 0)
 
-	rl.ipLimiters.Range(func(key, value interface{}) bool {
+	rl.ipLimiters.Range(func(key, value any) bool {
 		ip := key.(string)
 		ipLimiter := value.(*IPLimiterInfo)
 
@@ -247,13 +247,13 @@ func (rl *RateLimiter) StartCleanupRoutine() {
 }
 
 // GetStats 获取统计信息
-func (rl *RateLimiter) GetStats() map[string]interface{} {
+func (rl *RateLimiter) GetStats() map[string]any {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
 
 	// 计算活跃 IP 数量
 	activeIPs := 0
-	rl.ipLimiters.Range(func(key, value interface{}) bool {
+	rl.ipLimiters.Range(func(key, value any) bool {
 		activeIPs++
 		return true
 	})
@@ -262,7 +262,7 @@ func (rl *RateLimiter) GetStats() map[string]interface{} {
 	duration := time.Since(rl.startTime)
 	avgRequestsPerSecond := float64(rl.totalRequests) / duration.Seconds()
 
-	return map[string]interface{}{
+	return map[string]any{
 		"total_requests":          rl.totalRequests,
 		"global_requests":         rl.globalRequests,
 		"active_ip_count":         activeIPs,
@@ -274,7 +274,7 @@ func (rl *RateLimiter) GetStats() map[string]interface{} {
 }
 
 // GetIPStats 获取指定 IP 的统计信息
-func (rl *RateLimiter) GetIPStats(ip string) map[string]interface{} {
+func (rl *RateLimiter) GetIPStats(ip string) map[string]any {
 	if value, ok := rl.ipLimiters.Load(ip); ok {
 		ipLimiter := value.(*IPLimiterInfo)
 		ipLimiter.mu.RLock()
@@ -283,7 +283,7 @@ func (rl *RateLimiter) GetIPStats(ip string) map[string]interface{} {
 		duration := time.Since(ipLimiter.FirstRequest)
 		requestsPerSecond := float64(ipLimiter.RequestCount) / duration.Seconds()
 
-		return map[string]interface{}{
+		return map[string]any{
 			"ip":                  ip,
 			"request_count":       ipLimiter.RequestCount,
 			"first_request":       ipLimiter.FirstRequest,
@@ -294,7 +294,7 @@ func (rl *RateLimiter) GetIPStats(ip string) map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"ip":    ip,
 		"found": false,
 	}

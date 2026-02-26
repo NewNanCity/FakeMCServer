@@ -125,7 +125,7 @@ func (s *Server) lifecycleManager() {
 	s.running.Store(false)
 
 	// 关闭所有连接
-	s.connections.Range(func(key, value interface{}) bool {
+	s.connections.Range(func(key, value any) bool {
 		if conn, ok := value.(*Connection); ok {
 			conn.Close()
 		}
@@ -254,7 +254,7 @@ func (s *Server) cleanupExpiredConnections() {
 	now := time.Now()
 	maxIdleTime := s.config.Server.IdleTimeout
 
-	s.connections.Range(func(key, value interface{}) bool {
+	s.connections.Range(func(key, value any) bool {
 		if conn, ok := value.(*Connection); ok {
 			if now.Sub(conn.StartTime) > maxIdleTime {
 				conn.Logger.Info().Msg("清理过期连接")
@@ -268,8 +268,8 @@ func (s *Server) cleanupExpiredConnections() {
 }
 
 // GetStats 获取服务器统计信息
-func (s *Server) GetStats() map[string]interface{} {
-	return map[string]interface{}{
+func (s *Server) GetStats() map[string]any {
+	return map[string]any{
 		"connection_count": s.connCount.Load(),
 		"running":          s.running.Load(),
 	}

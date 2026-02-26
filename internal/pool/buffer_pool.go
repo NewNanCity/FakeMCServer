@@ -14,7 +14,7 @@ type BufferPool struct {
 func NewBufferPool(size int) *BufferPool {
 	return &BufferPool{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return make([]byte, size)
 			},
 		},
@@ -49,7 +49,7 @@ type ResponsePool struct {
 func NewResponsePool() *ResponsePool {
 	return &ResponsePool{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return make([]byte, 0, 4096) // 预分配4KB容量
 			},
 		},

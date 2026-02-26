@@ -143,7 +143,7 @@ func (h *GoMCHandler) handleStatusQuery(mcConn *net.Conn, conn *network.Connecti
 	var p pk.Packet
 
 	// 最多处理2个包（状态请求和Ping）
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		err := mcConn.ReadPacket(&p)
 		if err != nil {
 			return err

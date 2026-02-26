@@ -150,7 +150,7 @@ func (al *AttackLogger) LogRateLimitTriggered(ip string, limitType string, reque
 }
 
 // LogSuspiciousActivity 记录可疑活动
-func (al *AttackLogger) LogSuspiciousActivity(ip string, activity string, details map[string]interface{}) {
+func (al *AttackLogger) LogSuspiciousActivity(ip string, activity string, details map[string]any) {
 	event := al.logger.Warn().
 		Str("event_type", "suspicious_activity").
 		Str("ip", ip).
@@ -165,7 +165,7 @@ func (al *AttackLogger) LogSuspiciousActivity(ip string, activity string, detail
 }
 
 // LogCircuitBreakerTriggered 记录熔断器触发
-func (al *AttackLogger) LogCircuitBreakerTriggered(reason string, metrics map[string]interface{}) {
+func (al *AttackLogger) LogCircuitBreakerTriggered(reason string, metrics map[string]any) {
 	event := al.logger.Error().
 		Str("event_type", "circuit_breaker_triggered").
 		Str("reason", reason)
@@ -278,7 +278,7 @@ func (sl *SecurityLogger) LogPacketSizeExceeded(ip string, packetSize, maxSize i
 }
 
 // LogProtocolViolation 记录协议违规
-func (sl *SecurityLogger) LogProtocolViolation(ip string, violation string, details map[string]interface{}) {
+func (sl *SecurityLogger) LogProtocolViolation(ip string, violation string, details map[string]any) {
 	event := sl.logger.Warn().
 		Str("event_type", "protocol_violation").
 		Str("ip", ip).

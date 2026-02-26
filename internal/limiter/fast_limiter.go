@@ -14,10 +14,10 @@ type FastRateLimiter struct {
 	config      *config.Config
 	globalCount atomic.Int64
 	ipLimiters  sync.Map // map[string]*ipLimiter
-	
+
 	// 预计算的值，避免重复计算
-	baseDelay       time.Duration
-	ipFreqFactor    float64
+	baseDelay        time.Duration
+	ipFreqFactor     float64
 	globalLoadFactor float64
 }
 
@@ -46,24 +46,24 @@ func (f *FastRateLimiter) Allow(ip string) bool {
 		f.globalCount.Add(-1)
 		return false
 	}
-	
+
 	// 获取或创建IP限流器
 	limiterInterface, _ := f.ipLimiters.LoadOrStore(ip, &ipLimiter{
 		allowed: atomic.Bool{},
 	})
 	limiter := limiterInterface.(*ipLimiter)
-	
+
 	// 更新访问时间和计数
 	now := time.Now().UnixNano()
 	limiter.lastAccess.Store(now)
 	ipCount := limiter.count.Add(1)
-	
+
 	// 检查IP级别限制
 	if ipCount > int64(f.config.RateLimit.IPLimit) {
 		limiter.allowed.Store(false)
 		return false
 	}
-	
+
 	limiter.allowed.Store(true)
 	return true
 }
@@ -75,23 +75,23 @@ func (f *FastRateLimiter) CalculateDelay(ip string) time.Duration {
 	if !exists {
 		return f.baseDelay
 	}
-	
+
 	limiter := limiterInterface.(*ipLimiter)
 	ipFreq := float64(limiter.count.Load())
 	globalLoad := float64(f.globalCount.Load())
-	
+
 	// 使用位运算和预计算值优化计算
 	ipPenalty := time.Duration(ipFreq * f.ipFreqFactor * float64(time.Millisecond))
 	globalPenalty := time.Duration(globalLoad * f.globalLoadFactor * float64(time.Millisecond))
-	
+
 	return f.baseDelay + ipPenalty + globalPenalty
 }
 
 // Cleanup 清理过期的IP限流器
 func (f *FastRateLimiter) Cleanup() {
 	cutoff := time.Now().Add(-time.Hour).UnixNano()
-	
-	f.ipLimiters.Range(func(key, value interface{}) bool {
+
+	f.ipLimiters.Range(func(key, value any) bool {
 		limiter := value.(*ipLimiter)
 		if limiter.lastAccess.Load() < cutoff {
 			f.ipLimiters.Delete(key)
@@ -101,14 +101,14 @@ func (f *FastRateLimiter) Cleanup() {
 }
 
 // GetStats 获取统计信息
-func (f *FastRateLimiter) GetStats() map[string]interface{} {
+func (f *FastRateLimiter) GetStats() map[string]any {
 	activeIPs := 0
-	f.ipLimiters.Range(func(key, value interface{}) bool {
+	f.ipLimiters.Range(func(key, value any) bool {
 		activeIPs++
 		return true
 	})
-	
-	return map[string]interface{}{
+
+	return map[string]any{
 		"global_requests": f.globalCount.Load(),
 		"active_ips":      activeIPs,
 	}
@@ -118,9 +118,9 @@ func (f *FastRateLimiter) GetStats() map[string]interface{} {
 func (f *FastRateLimiter) Reset() {
 	// 重置全局计数器
 	f.globalCount.Store(0)
-	
+
 	// 重置IP计数器
-	f.ipLimiters.Range(func(key, value interface{}) bool {
+	f.ipLimiters.Range(func(key, value any) bool {
 		limiter := value.(*ipLimiter)
 		limiter.count.Store(0)
 		return true
